@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mysql:9.7.4
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_USER: user
+      MYSQL_DATABSE: phishing-db
+    ports: 
+      - 3307:3306
+    volumes:
+      - phishing-report-volume:/var/lib/mysql
+      - ./scripts/phishing_report_schema.sql:/docker-entrypoint-initdb.d/phishing_report_schema.sql
+    restart: unless-stopped 
+    secrets:
+      - db_password
+      - db_root_password
+    networks:
+      - isolated
+
+
+
+secrets:
+  db_password:
+    file: ./.secrets/db_password.txt
+  db_root_password:
+    file: ./.secrets/db_root_password.txt
+
+volumes:
+  phishing-report-volume:
+
+networks:
+  isolated:
+    internal: true #no external connectivity
+  public: #default bridge netowrk, 
