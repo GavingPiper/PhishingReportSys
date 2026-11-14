@@ -1,24 +1,56 @@
 services:
   db:
+    container_name: db-container
     image: mysql:9.7.4
+    restart: unless-stopped
+
     environment:
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
       MYSQL_PASSWORD_FILE: /run/secrets/db_password
       MYSQL_USER: user
-      MYSQL_DATABSE: phishing-db
-    ports: 
-      - 3307:3306
+      MYSQL_DATABASE: phishing-db
+
+    ports:
+      - "127.0.0.1:3307:3306"
+
     volumes:
       - phishing-report-volume:/var/lib/mysql
       - ./scripts/phishing_report_schema.sql:/docker-entrypoint-initdb.d/phishing_report_schema.sql
-    restart: unless-stopped 
+
     secrets:
       - db_password
       - db_root_password
+
+    networks:
+      - backend
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$(cat /run/secrets/db_root_password)" --silent'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  parse_mail:
+    build: .
+    working_dir: /app
+    command: python /app/parse_mail.py
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    volumes:
+      - .:/app
+
+    secrets:
+      - db_password
+
     networks:
       - isolated
-
-
+      - public
 
 secrets:
   db_password:
@@ -30,6 +62,6 @@ volumes:
   phishing-report-volume:
 
 networks:
-  isolated:
-    internal: true #no external connectivity
-  public: #default bridge netowrk, 
+  backend:
+    driver: overlay
+  public: {}
