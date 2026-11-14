@@ -1,50 +1,49 @@
-## Future work
-
-- [ ] Move the Python parser container to the host running the mail server. Update its mail-server connection settings and confirm it can still reach the MySQL database securely.
-
 # Phishing Report Parser
+
+A Python parser for phishing-report emails, run alongside a MySQL database using Docker Compose.
 
 ## Requirements
 
 - Docker Engine
 - Docker Compose
 
-## Setup
+## Setup and start
 
-1. Create the password files:
+1. Create these password files:
 
    ```text
    .secrets/db_root_password.txt
    .secrets/db_password.txt
    ```
 
-   Put the MySQL root password in the first file and the application user's password in the second. Do not commit these files to GitHub.
+   Put the MySQL root password in the first file and the application user’s password in the second. Do not commit `.secrets/` to GitHub.
 
-2. Check that `requirements.txt`, `Dockerfile`, `parse_mail.py`, and `scripts/phishing_report_schema.sql` are in place.
+2. Make sure these project files are present:
 
-3. Build and start the services:
+   ```text
+   Dockerfile
+   requirements.txt
+   parse_mail.py
+   scripts/phishing_report_schema.sql
+   ```
+
+3. Build the Python image and start the services:
 
    ```bash
    docker compose up --build
    ```
 
-   The Python script runs once and exits. MySQL stays running.
+   The Python script runs once and exits. The MySQL container continues running.
 
-## Managing the containers
-
-Start the services in the background:
+To start the services in the background:
 
 ```bash
 docker compose up -d --build
 ```
 
-Stop the services without deleting database data:
+## Manage the containers
 
-```bash
-docker compose down
-```
-
-See running and stopped containers:
+Show running and stopped containers:
 
 ```bash
 docker compose ps -a
@@ -58,17 +57,35 @@ docker compose logs parse_mail
 docker compose logs db
 ```
 
-Run the Python script again:
+Run the parser again:
 
 ```bash
 docker compose run --rm --no-deps parse_mail
 ```
 
+Stop the services without deleting database data:
+
+```bash
+docker compose down
+```
+
 ## Database
 
-MySQL is available to other Compose services at hostname `db`, port `3306`. From the host computer, connect to `127.0.0.1`, port `3307`.
+The parser can reach MySQL on the Compose network using hostname `db` and port `3306`. From the host computer, MySQL is available at `127.0.0.1:3307`.
 
-Database data persists in the `phishing-report-volume` named volume. The schema file is applied automatically when MySQL initializes a new, empty data volume.
+Open a MySQL prompt using the application account:
+
+```bash
+docker compose exec db mysql -u user -p phishing-db
+```
+
+Enter the application database password when prompted. At the `mysql>` prompt, enter SQL commands. Exit the prompt with:
+
+```sql
+exit
+```
+
+Database data persists in the `phishing-report-volume` named volume. The schema file is applied automatically only when MySQL initializes an empty data volume.
 
 ## Remove database data
 
@@ -79,3 +96,7 @@ docker compose down -v
 ```
 
 **This permanently deletes the MySQL data stored in the volume.** The schema will run again the next time MySQL starts with an empty volume.
+
+## Future work
+
+- [ ] Move the Python parser container to the host running the mail server. Update its mail-server connection settings and confirm it can still reach the MySQL database securely.

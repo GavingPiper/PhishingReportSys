@@ -49,7 +49,7 @@ services:
       - db_password
 
     networks:
-      - isolated
+      - backend
       - public
 
 secrets:
@@ -63,5 +63,6 @@ volumes:
 
 networks:
   backend:
-    driver: overlay
+    #driver: overlay will be used when running on multiple hosts, private true is good enough for now
+    internal: true
   public: {}
