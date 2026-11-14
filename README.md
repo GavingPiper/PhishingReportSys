@@ -1,6 +1,4 @@
-# Phishing Report Parser
-
-A Python parser for phishing-report emails, run alongside a MySQL database using Docker Compose.
+# Phishing Report System
 
 ## Requirements
 
