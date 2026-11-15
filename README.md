@@ -12,6 +12,11 @@
    ```text
    .secrets/db_root_password.txt
    .secrets/db_password.txt
+   .secrets/mail_username.txt
+   .secrets/mail_password.txt
+   .secrets/imap_server.txt
+   .secrets/imap_port.txt
+   .secrest/mailbox.txt
    ```
 
    Put the MySQL root password in the first file and the application user’s password in the second. Do not commit `.secrets/` to GitHub.
@@ -94,6 +99,44 @@ docker compose down -v
 ```
 
 **This permanently deletes the MySQL data stored in the volume.** The schema will run again the next time MySQL starts with an empty volume.
+
+## Mail Parser  
+
+The mail parser consists of two components:  
+
+### listener.py  
+
+`listener.py` connects to the MailCow server over IMAPS using credentials provided through Docker secrets.
+It monitors the configured mailbox for new unread emails using the IMAP IDLE protocol.  
+
+When a new email is detected, the listener:  
+1. Downloads the email as an `.eml` file.  
+2. Stores the email in a temporary file.  
+3. Executes `parse_mail.py`, passing the temporary file path as an argument.  
+4. Marks the email as read after successful processing.  
+5. Removes the temporary file.  
+
+The listener automatically attempts to reconnect if the connection to the mail server is lost.  
+
+### parse_mail.py  
+
+`parse_mail.py` parses a downloaded `.eml` file using the mail-parser library.
+Relevant email fields are extracted and inserted into the SQL database.  
+
+## Required Secrets  
+
+Database access requires:  
+- db_password  
+
+The listener requires:  
+- mail_user
+- mail_password
+- imap_server
+- imap_port
+- mailbox
+
+The parser requires:  
+- db_password  
 
 ## Future work
 

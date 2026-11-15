@@ -36,7 +36,7 @@ services:
   parse_mail:
     build: .
     working_dir: /app
-    command: python /app/parse_mail.py
+    command: python /app/listener.py
 
     depends_on:
       db:
@@ -47,6 +47,11 @@ services:
 
     secrets:
       - db_password
+      - mail_user
+      - mail_password
+      - mailbox
+      - imap_server
+      - imap_port
 
     networks:
       - backend
@@ -57,6 +62,16 @@ secrets:
     file: ./.secrets/db_password.txt
   db_root_password:
     file: ./.secrets/db_root_password.txt
+  mail_user:
+    file: ./.secrets/mail_user.txt
+  mail_password:
+    file: ./.secrets/mail_password.txt
+  mailbox:
+    file: ./.secrets/mailbox.txt
+  imap_server:
+    file: ./.secrets/imap_server.txt
+  imap_port:
+    file: ./.secrets/imap_port.txt
 
 volumes:
   phishing-report-volume:

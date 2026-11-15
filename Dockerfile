@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN useradd --create-home app && chown app:app /app
 USER app
 
-CMD ["python", "parse_mail.py"]
+CMD ["python", "listener.py"]
