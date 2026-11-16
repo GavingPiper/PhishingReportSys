@@ -1,9 +1,11 @@
 import mailparser
 import mysql.connector
 import sys
-
+import logging
 
 def parse_email(eml_file_path):
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s $(levelname)s %(message)s") 
+
     mail = mailparser.parse_from_file(eml_file_path)
 
     # obtain necessary components
@@ -12,9 +14,9 @@ def parse_email(eml_file_path):
     mail_date = mail.date
     mail_subj = mail.subject
     mail_sender = mail.from_[0][1]
-    mail_recip = mail.to
+    mail_recip = mail.to[0][1]
     # the parser does not consistently put the reciever domain first, might have to cut from reciever addr instead
-    mail_client = mail.to_domains[0]
+    mail_client = mail_sender.split('@')[1]
 
     """
         # testing parsing
@@ -35,19 +37,24 @@ def parse_email(eml_file_path):
     """
 
     # insert into db
-    f = open("/run/secrets/db_password")
+    f = open("/run/secrets/db_root_password.txt")
     pw = f.read()
 
     # pw = "password"
-    mail_db = mysql.connector.connect(host="localhost", password=pw, user="user", database="sql_db")
+    mail_db = mysql.connector.connect(host="db-container", password=pw, user="root", database="phishing_db")
     add_mail = ("INSERT INTO Emails (sender, recipient, body, clientID)"
-                "Values (%s, %s, %s, %s, SELECT clientID FROM Clients WHERE email=%s)")
+                "SELECT %s, %s, %s, clientID FROM Clients WHERE email = %s")
     vals = (mail_sender, mail_recip, mail_body, mail_client)
+
+    for i, val in enumerate(vals):
+        print(f"vals[{i}] -> Value: {val}")
+
     mycursor = mail_db.cursor()
     mycursor.execute(add_mail, vals)
+    
 
     mail_db.commit()
-
+    logging.info("Inserted parsed email.")
 
 if __name__ == "__main__":
     eml_file_path = sys.argv[1]

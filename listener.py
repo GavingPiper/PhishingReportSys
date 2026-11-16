@@ -1,9 +1,10 @@
-import imaplib
 import tempfile
 import subprocess
 import os
+import ssl
 import time
 import logging
+from imapclient import IMAPClient
 
 #-------------------------------------------
 # Secrets
@@ -35,23 +36,26 @@ def process_unread(mail):
     """
     Find and process all unread emails.
     """
+    messages = []
+    try:
+        messages = mail.search(['UNSEEN'])
+    except Exception as e:
+        logging.error(f"Failed to search mailbox: {e}")
 
-    status, messages = mail.search(None, "UNSEEN")
-
-    if status != "OK":
-        logging.error("Failed to search mailbox")
+    if not messages:
+        logging.info("No new unread mail.")
         return
 
-    for msg_id in messages[0].split():
+    for msg_id in messages:
         try:
-            logging.info(f"Processing message {msg_id.decode()}")
+            logging.info(f"Processing message {msg_id}")
 
-            status, data = mail.fetch(msg_id, "(RFC822)")
+            response = mail.fetch([msg_id], ["RFC822"])
 
-            if status != "OK":
+            if msg_id not in response:
                 continue
 
-            raw_email = data[0][1]
+            raw_email = response[msg_id][b'RFC822']
 
             with tempfile.NamedTemporaryFile(
                 suffix=".eml",
@@ -65,13 +69,13 @@ def process_unread(mail):
                 check=True
             )
 
-            mail.store(msg_id, "+FLAGS", "\\Seen")
+            mail.add_flags(msg_id, [b"\\Seen"])
 
-            logging.info(f"Successfully processed {msg_id.decode()}")
+            logging.info(f"Successfully processed {msg_id}")
 
         except Exception as e:
             logging.exception(
-                f"Failed processing message {msg_id.decode()}: {e}"
+                f"Failed processing message {msg_id}: {e}"
             )
 
         finally:
@@ -87,14 +91,18 @@ def main():
         try:
             logging.info("Connecting to IMAP server")
 
-            mail = imaplib.IMAP4_SSL(
+            unverified_context = ssl._create_unverified_context()
+
+            mail = IMAPClient(
                 IMAP_SERVER,
-                IMAP_PORT,
-                timeout=1
+                port=IMAP_PORT,
+                ssl=True,
+                ssl_context=unverified_context,
+                timeout=100,
             )
 
             mail.login(MAIL_USERNAME, MAIL_PASSWORD)
-            mail.select(MAILBOX)
+            mail.select_folder(MAILBOX)
 
             logging.info("Connected to IMAP server")
 
@@ -102,18 +110,29 @@ def main():
             process_unread(mail)
 
             while True:
+                logging.info("Waiting for mail in IDLE")
                 mail.idle()
-                logging.info("Waiting for mail")
+                idle = True
 
                 try:
                     responses = mail.idle_check(timeout=300)
 
                     if responses:
+                        logging.info(f"New mail event detected: {responses}") 
+                        
+                        mail.idle_done()
+                        idle = False
                         process_unread(mail)
-                        break # Start a new IDLE session.
-
+                        
+                        break
+                
                 finally:
-                    mail.idle_done()
+                    if idle:
+                        try:
+                            mail.idle_done()
+                        except Exception:
+                            pass
+
 
         except Exception as e:
             logging.exception(

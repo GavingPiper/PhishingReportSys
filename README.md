@@ -79,7 +79,7 @@ The parser can reach MySQL on the Compose network using hostname `db` and port `
 Open a MySQL prompt using the application account:
 
 ```bash
-docker compose exec db mysql -u user -p phishing-db
+docker compose exec db mysql -u user -p phishing_db
 ```
 
 Enter the application database password when prompted. At the `mysql>` prompt, enter SQL commands. Exit the prompt with:

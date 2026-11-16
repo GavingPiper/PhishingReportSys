@@ -44,6 +44,7 @@ services:
 
     volumes:
       - .:/app
+      - ./.secrets:/run/secrets
 
     secrets:
       - db_password
@@ -78,6 +79,7 @@ volumes:
 
 networks:
   backend:
-    #driver: overlay will be used when running on multiple hosts, private true is good enough for now
+      # overlay will be used when running on multiple hosts, private true is good enough for now
+    driver: bridge 
     internal: true
   public: {}
