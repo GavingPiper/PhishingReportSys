@@ -44,7 +44,6 @@ services:
 
     volumes:
       - .:/app
-      - ./.secrets:/run/secrets
 
     secrets:
       - db_password
