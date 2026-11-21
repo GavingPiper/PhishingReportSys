@@ -1,35 +1,85 @@
 services:
   db:
+    container_name: db-container
     image: mysql:9.7.4
+    restart: unless-stopped
+
     environment:
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
       MYSQL_PASSWORD_FILE: /run/secrets/db_password
       MYSQL_USER: user
-      MYSQL_DATABSE: phishing-db
-    ports: 
-      - 3307:3306
+      MYSQL_DATABASE: phishing-db
+
+    ports:
+      - "127.0.0.1:3307:3306"
+
     volumes:
       - phishing-report-volume:/var/lib/mysql
       - ./scripts/phishing_report_schema.sql:/docker-entrypoint-initdb.d/phishing_report_schema.sql
-    restart: unless-stopped 
+
     secrets:
       - db_password
       - db_root_password
+
     networks:
-      - isolated
+      - backend
 
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$(cat /run/secrets/db_root_password)" --silent'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
+  parse_mail:
+    build: .
+    working_dir: /app
+    command: python /app/listener.py
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    volumes:
+      - .:/app
+      - ./.secrets:/run/secrets
+
+    secrets:
+      - db_password
+      - mail_user
+      - mail_password
+      - mailbox
+      - imap_server
+      - imap_port
+
+    networks:
+      - backend
+      - public
 
 secrets:
   db_password:
     file: ./.secrets/db_password.txt
   db_root_password:
     file: ./.secrets/db_root_password.txt
+  mail_user:
+    file: ./.secrets/mail_user.txt
+  mail_password:
+    file: ./.secrets/mail_password.txt
+  mailbox:
+    file: ./.secrets/mailbox.txt
+  imap_server:
+    file: ./.secrets/imap_server.txt
+  imap_port:
+    file: ./.secrets/imap_port.txt
 
 volumes:
   phishing-report-volume:
 
 networks:
-  isolated:
-    internal: true #no external connectivity
-  public: #default bridge netowrk, 
+  backend:
+      # overlay will be used when running on multiple hosts, private true is good enough for now
+    driver: bridge 
+    internal: true
+  public: {}
